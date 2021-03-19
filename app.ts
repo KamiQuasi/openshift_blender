@@ -1,6 +1,12 @@
-import { Application, Router, HttpError, Status, send } from "https://deno.land/x/oak@v6.2.0/mod.ts";
+import { Application, Router, HttpError, Status, send } from "https://deno.land/x/oak/mod.ts";
+import { viewEngine, engineFactory, adapterFactory} from 'https://deno.land/x/view_engine/mod.ts';
+import { upload } from 'https://deno.land/x/upload_middleware_for_oak_framework/mod.ts';
+
+const ejsEngine = engineFactory.getEjsEngine();
+const oakAdapter = adapterFactory.getOakAdapter();
 
 const app = new Application();
+const router = new Router();
 
 // Error Handling
 app.use(async (context, next) => {
@@ -23,13 +29,32 @@ app.use(async (context, next) => {
   }
 });
 
-// Static serving
-app.use(async (ctx) => {
-  await ctx.send({
-    root: `${Deno.cwd()}`,
-    index: 'index.html',
+app.use(viewEngine(oakAdapter, ejsEngine));
+
+router
+  .get('/', ctx => {
+    ctx.render('index.ejs')
+  })
+  .post('/upload', upload('uploads'), async(ctx:any, next:any) => {
+    const file = ctx.uploadedFiles;
+    console.log(file);
+    const p = Deno.run({
+      cmd: ["blender", "-b", "-o images/image.png", ""]
+    });
+    const {code} = await p.status();
+    if (code === 0) {
+      const rawOutput = await p.output();
+      await Deno.stdout.write(rawOutput);
+    } else {
+      const rawError = await p.stderrOutput();
+      const errorString = new TextDecoder().decode(rawError);
+      console.log(errorString);
+    }
+    ctx.response.redirect('/view');
   });
-});
+
+app.use(router.routes());
+app.use(router.allowedMethods());
 
 app.addEventListener('listen', ({hostname, port}) => {
   console.log(`Serving ${Deno.cwd()}`);

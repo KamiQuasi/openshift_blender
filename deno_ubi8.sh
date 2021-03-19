@@ -15,5 +15,5 @@ buildah config --entrypoint "./deno_app" $ctr
 buildah config --port 8000 $ctr
 buildah unmount $ctr
 buildah commit --squash $ctr deno-app
-buildah push $ctrimg docker://quay.io/ldary/2021-dashboard-ui
+buildah push $ctrimg docker://quay.io/ldary/openshift_blender
 buildah rm $ctr
